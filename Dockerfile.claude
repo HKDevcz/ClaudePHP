@@ -1,0 +1,82 @@
+# Use build arguments
+ARG PHP_VERSION=8.4
+ARG NODE_VERSION=24
+ARG INSTALL_CLAUDE=true
+
+# Multi-stage build: Node.js stage
+FROM node:${NODE_VERSION}-alpine AS node
+
+# Main PHP stage - using CLI instead of FPM
+FROM php:${PHP_VERSION}-cli-alpine
+
+# Add metadata
+LABEL maintainer="your-email@example.com"
+LABEL description="Lightweight PHP CLI container with Node.js and Claude Code CLI"
+
+# Install common PHP extensions and dependencies
+RUN apk add --no-cache \
+    # Core dependencies
+    libzip-dev \
+    zip \
+    unzip \
+    git \
+    curl \
+    wget \
+    # Image processing
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    # Database support
+    postgresql-dev \
+    # Other useful tools
+    bash \
+    vim \
+    nano \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+    pdo \
+    pdo_mysql \
+    pdo_pgsql \
+    mysqli \
+    zip \
+    gd \
+    opcache
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Copy Node.js and npm from node stage
+COPY --from=node /usr/local /usr/local
+
+# Verify Node.js and npm installation
+RUN node -v && npm -v
+
+# Conditionally install Claude Code CLI
+ARG INSTALL_CLAUDE
+RUN if [ "$INSTALL_CLAUDE" = "true" ]; then \
+    npm install -g @anthropic-ai/claude-code && \
+    git config --global --add safe.directory /app; \
+    fi
+
+# Install shadow package for usermod/groupmod and su-exec for user switching
+RUN apk add --no-cache shadow sudo su-exec
+
+# Create and set working directory
+RUN mkdir -p /app
+WORKDIR /app
+
+# Create a default user (will be modified at runtime to match host user)
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser -s /bin/bash appuser && \
+    echo "appuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/appuser && \
+    su-exec appuser git config --global --add safe.directory /app
+
+# Copy entrypoint script
+COPY claude-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/claude-entrypoint.sh
+
+# Set entrypoint
+ENTRYPOINT ["claude-entrypoint.sh"]
+
+# Default command - keep container running
+CMD ["tail", "-f", "/dev/null"]
