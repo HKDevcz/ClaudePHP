@@ -20,6 +20,24 @@ When you run several PHP projects and want to keep Claude in a container but wit
 - Docker installed on your system
 - Docker Compose (optional, for compose integration)
 
+## Quick Start
+
+The pre-built image is available from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/hkdevcz/claudephp:8.4
+```
+
+Then run Claude in your project:
+
+```bash
+docker run -it --rm \
+  -v $(pwd):/app \
+  -e USER_UID=$(id -u) \
+  -e USER_GID=$(id -g) \
+  ghcr.io/hkdevcz/claudephp:8.4 claude
+```
+
 ## Build with PHP version you need
 
 Build the container with your desired PHP and Node versions using build arguments.
@@ -69,7 +87,7 @@ docker run -it --rm \
   -v $(pwd):/app \
   -e USER_UID=$(id -u) \
   -e USER_GID=$(id -g) \
-  claudephp:8.4 claude
+  ghcr.io/hkdevcz/claudephp:8.4 claude
 ```
 
 If you don't pass `USER_UID` and `USER_GID`, the container defaults to `1000:1000`, which works for most single-user systems.
@@ -90,7 +108,7 @@ docker run -it --rm \
   -v $(pwd):/app \
   -e USER_UID=$(id -u) \
   -e USER_GID=$(id -g) \
-  claudephp:8.4 claude
+  ghcr.io/hkdevcz/claudephp:8.4 claude
 ```
 
 The `.claude/` directory stores authentication credentials and session data, which will persist across container runs thanks to the volume mount.
@@ -117,7 +135,7 @@ You can either override your existing PHP service or add a new `claudephp` servi
 ```yaml
 services:
   claudephp:
-    image: claudephp:8.4
+    image: ghcr.io/hkdevcz/claudephp:8.4
     environment:
       USER_UID: ${USER_UID:-1000}
       USER_GID: ${USER_GID:-1000}
@@ -149,6 +167,77 @@ USER_GID=1000
 | `USER_UID` | User ID to match host user permissions | `1000` |
 | `USER_GID` | Group ID to match host user permissions | `1000` |
 | `SETUP_GIT_EXCLUDES` | Automatically add Claude files to `.git/info/exclude` | `false` |
+
+## Bash Shortcut
+
+To make it easier to use, add an alias to your `~/.bashrc` or `~/.zshrc`:
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+alias claudephp='docker run -it --rm -v $(pwd):/app -e USER_UID=$(id -u) -e USER_GID=$(id -g) ghcr.io/hkdevcz/claudephp:8.4 claude'
+```
+
+Then reload your shell configuration:
+
+```bash
+source ~/.bashrc  # or source ~/.zshrc for zsh
+```
+
+Now you can run Claude from any project directory with just:
+
+```bash
+cd /path/to/your/project
+claudephp
+```
+
+### With git excludes:
+
+If you want to always setup git excludes, modify the alias:
+
+```bash
+alias claudephp='docker run -it --rm -v $(pwd):/app -e USER_UID=$(id -u) -e USER_GID=$(id -g) -e SETUP_GIT_EXCLUDES=true ghcr.io/hkdevcz/claudephp:8.4 claude'
+```
+
+### Alternative function for more flexibility:
+
+For more control, add a function instead of an alias:
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+claudephp() {
+    local setup_git_excludes=false
+    local args=()
+
+    # Parse custom arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --setup-git-excludes)
+                setup_git_excludes=true
+                shift
+                ;;
+            *)
+                args+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    docker run -it --rm \
+        -v "$(pwd):/app" \
+        -e USER_UID=$(id -u) \
+        -e USER_GID=$(id -g) \
+        -e SETUP_GIT_EXCLUDES=$setup_git_excludes \
+        ghcr.io/hkdevcz/claudephp:8.4 claude "${args[@]}"
+}
+```
+
+This allows you to pass arguments to Claude and control git excludes:
+
+```bash
+claudephp --help
+claudephp --version
+claudephp --setup-git-excludes  # Enable automatic git excludes for this run
+```
 
 ## Project-Specific Containers
 
