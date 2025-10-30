@@ -6,12 +6,12 @@ ARG INSTALL_CLAUDE=true
 # Multi-stage build: Node.js stage
 FROM node:${NODE_VERSION}-alpine AS node
 
-# Main PHP stage - using CLI instead of FPM
-FROM php:${PHP_VERSION}-cli-alpine
+# Main PHP stage - using FPM
+FROM php:${PHP_VERSION}-fpm-alpine
 
 # Add metadata
 LABEL maintainer="your-email@example.com"
-LABEL description="Lightweight PHP CLI container with Node.js and Claude Code CLI"
+LABEL description="Lightweight PHP-FPM container with Node.js and Claude Code CLI"
 
 # Install common PHP extensions and dependencies
 RUN apk add --no-cache \
@@ -75,8 +75,15 @@ RUN addgroup -g 1000 appuser && \
 COPY claude-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/claude-entrypoint.sh
 
+# Configure PHP-FPM to listen on port 9000
+RUN sed -i 's/listen = 127.0.0.1:9000/listen = 0.0.0.0:9000/' /usr/local/etc/php-fpm.d/www.conf || \
+    sed -i 's|listen = /run/php-fpm/www.sock|listen = 0.0.0.0:9000|' /usr/local/etc/php-fpm.d/www.conf
+
+# Expose PHP-FPM port
+EXPOSE 9000
+
 # Set entrypoint
 ENTRYPOINT ["claude-entrypoint.sh"]
 
-# Default command - keep container running
-CMD ["tail", "-f", "/dev/null"]
+# Default command - run PHP-FPM
+CMD ["php-fpm", "-F"]

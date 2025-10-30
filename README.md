@@ -1,14 +1,14 @@
 # Claude Box with PHP runtime
 
-A Docker container that combines PHP CLI tools with Claude Code, enabling AI-assisted development for PHP projects directly within a containerized environment.
+A Docker container that combines PHP-FPM with Claude Code, enabling AI-assisted development for PHP projects directly within a containerized environment.
 
 ## Overview
 
-When you run several PHP projects and want to keep Claude in a container but with PHP CLI tools available for your Claude agent, this setup allows you to maintain isolated PHP environments while leveraging Claude Code's capabilities.
+When you run several PHP projects and want to keep Claude in a container but with PHP-FPM available for your Claude agent, this setup allows you to maintain isolated PHP environments while leveraging Claude Code's capabilities.
 
 ## Features
 
-- PHP CLI environment with Claude Code integrated
+- PHP-FPM environment with Claude Code integrated (listens on port 9000)
 - Support for multiple PHP versions
 - Automatic user permission matching - files created in container belong to your host user (not root)
 - Optional git exclude configuration for Claude-specific files
@@ -56,7 +56,7 @@ docker build -f Dockerfile.claude --build-arg PHP_VERSION=7.4 --build-arg NODE_V
 
 ### Other PHP versions:
 
-You can specify any PHP version available as an official PHP CLI Alpine image:
+You can specify any PHP version available as an official PHP FPM Alpine image:
 
 ```bash
 # PHP 8.3 with Node 22
@@ -140,7 +140,9 @@ services:
       USER_UID: ${USER_UID:-1000}
       USER_GID: ${USER_GID:-1000}
     volumes:
-      - '.:/app'
+      - .:/app
+    ports:
+      - "9000:9000"
 ```
 
 Then run:
