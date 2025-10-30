@@ -86,8 +86,15 @@ if [ "$(id -u)" -eq 0 ]; then
     # Fix ownership one more time before switching
     chown -R appuser:appuser /app 2>/dev/null || true
 
-    # Execute command as appuser
-    exec su-exec appuser "$@"
+    # Check if we're running php-fpm - if so, don't switch users
+    # PHP-FPM needs to start as root to initialize, then drops privileges internally
+    if [ "$1" = "php-fpm" ]; then
+        # Run PHP-FPM as root (it will drop privileges to www-data/nobody internally)
+        exec "$@"
+    else
+        # Execute other commands as appuser
+        exec su-exec appuser "$@"
+    fi
 else
     # Already not root, execute normally
     exec "$@"
